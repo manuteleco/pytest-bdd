@@ -31,3 +31,8 @@ Scenario: All steps are declared in the conftest
 Scenario: Using the same given fixture raises an error
     Given I have a bar
     And I have a bar
+
+
+Scenario: Using the same given fixture flagged as repeatable doesn't raise an error
+    Given I have a repeatable bar
+    And I have a repeatable bar

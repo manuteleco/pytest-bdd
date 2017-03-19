@@ -174,9 +174,10 @@ def _execute_scenario(feature, scenario, request, encoding):
             try:
                 # Check if the fixture that implements given step has not been yet used by another given step
                 if step.type == GIVEN:
-                    if step_func.fixture in givens:
+                    if not step_func.repeatable and step_func.fixture in givens:
                         raise exceptions.GivenAlreadyUsed(
-                            u'Fixture "{0}" that implements this "{1}" given step has been already used.'.format(
+                            u'Fixture "{0}" that implements this "{1}" given step has been already used. '
+                            u'Consider using `repeatable=True` if you really need to.'.format(
                                 step_func.fixture, step.name,
                             )
                         )

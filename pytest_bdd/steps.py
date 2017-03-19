@@ -66,7 +66,7 @@ def get_step_fixture_name(name, type_, encoding=None):
         type=type_, name=force_encode(name, **(dict(encoding=encoding) if encoding else {})))
 
 
-def given(name, fixture=None, converters=None, scope='function', target_fixture=None):
+def given(name, fixture=None, converters=None, scope='function', target_fixture=None, repeatable=False):
     """Given step decorator.
 
     :param name: Given step name.
@@ -75,6 +75,8 @@ def given(name, fixture=None, converters=None, scope='function', target_fixture=
                        {<param_name>: <converter function>}.
     :scope: Optional fixture scope
     :param target_fixture: Target fixture name to replace by steps definition function
+    :param repeatable: When `True` the "given" step will be allowed to be used more than once within
+                       a single scenario (default `False`).
     :raises: StepError in case of wrong configuration.
     :note: Can't be used as a decorator when the fixture is specified.
     """
@@ -88,13 +90,15 @@ def given(name, fixture=None, converters=None, scope='function', target_fixture=
         step_func.converters = converters
         step_func.__name__ = name
         step_func.fixture = fixture
+        step_func.repeatable = repeatable
         func = pytest.fixture(scope=scope)(lambda: step_func)
         func.__doc__ = 'Alias for the "{0}" fixture.'.format(fixture)
         _, name = parse_line(name)
         contribute_to_module(module, get_step_fixture_name(name, GIVEN), func)
         return _not_a_fixture_decorator
 
-    return _step_decorator(GIVEN, name, converters=converters, scope=scope, target_fixture=target_fixture)
+    return _step_decorator(GIVEN, name, converters=converters, scope=scope, target_fixture=target_fixture,
+                           repeatable=repeatable)
 
 
 def when(name, converters=None):
@@ -135,7 +139,7 @@ def _not_a_fixture_decorator(func):
     raise StepError('Cannot be used as a decorator when the fixture is specified')
 
 
-def _step_decorator(step_type, step_name, converters=None, scope='function', target_fixture=None):
+def _step_decorator(step_type, step_name, converters=None, scope='function', target_fixture=None, repeatable=False):
     """Step decorator for the type and the name.
 
     :param str step_type: Step type (GIVEN, WHEN or THEN).
@@ -143,6 +147,8 @@ def _step_decorator(step_type, step_name, converters=None, scope='function', tar
     :param dict converters: Optional step arguments converters mapping
     :param str scope: Optional step definition fixture scope
     :param target_fixture: Optional fixture name to replace by step definition
+    :param repeatable: When `True` the "given" step will be allowed to be used more than once within
+                       a single scenario (default `False`).
 
     :return: Decorator function for the step.
 
@@ -157,18 +163,20 @@ def _step_decorator(step_type, step_name, converters=None, scope='function', tar
         parsed_step_name = parser_instance.name
 
         if step_type == GIVEN:
-            if not hasattr(func, "_pytestfixturefunction"):
-                # Avoid multiple wrapping of a fixture
-                func = pytest.fixture(scope=scope)(func)
+            if not repeatable:
+                if not hasattr(func, "_pytestfixturefunction"):
+                    # Avoid multiple wrapping of a fixture
+                    func = pytest.fixture(scope=scope)(func)
 
-            def step_func(request):
-                result = get_fixture_value(request, func.__name__)
-                if target_fixture:
-                    inject_fixture(request, target_fixture, result)
-                return result
+                def step_func(request):
+                    result = get_fixture_value(request, func.__name__)
+                    if target_fixture:
+                        inject_fixture(request, target_fixture, result)
+                    return result
 
-            step_func.__doc__ = func.__doc__
+                step_func.__doc__ = func.__doc__
             step_func.fixture = func.__name__
+            step_func.repeatable = repeatable
 
         step_func.__name__ = force_encode(parsed_step_name)
 

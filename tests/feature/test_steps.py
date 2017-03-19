@@ -88,6 +88,18 @@ def test_multiple_given(request):
         test(request)
 
 
+def test_multiple_repeatable_given(request):
+    """Using the same given fixture flagged as repeatable doesn't raise an error."""
+    @scenario(
+        'steps.feature',
+        "Using the same given fixture flagged as repeatable doesn't raise an error",
+    )
+    def test():
+        pass
+
+    test(request)
+
+
 def test_step_hooks(testdir):
     """When step fails."""
     testdir.makefile(".feature", test="""
